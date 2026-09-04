@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CryptoLab — Шифрование и защита информации</title>
+  <meta name="description" content="Образовательное веб-приложение для изучения методов шифрования: шифр Цезаря, простая перестановка, блочная перестановка и другие." />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔐</text></svg>" />
+</head>
+<body>
+
+  <!-- Matrix rain background -->
+  <canvas id="matrix-bg"></canvas>
+
+  <!-- Mobile sidebar toggle -->
+  <button class="mobile-toggle" id="mobile-toggle" aria-label="Открыть меню">☰</button>
+
+  <div class="app">
+    <!-- ─── Sidebar ────────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar__header">
+        <a href="#" class="logo">
+          <div class="logo__icon">🔐</div>
+          <div>
+            <div class="logo__text">CryptoLab</div>
+            <div class="logo__tag">Защита информации</div>
+          </div>
+        </a>
+      </div>
+
+      <div class="sidebar__section-title">Шифры</div>
+      <ul class="cipher-list" id="cipher-list">
+        <!-- Dynamically populated from API -->
+        <li class="cipher-list__item">
+          <button class="cipher-list__btn" disabled>
+            <span class="icon"><span class="loading-spinner"></span></span>
+            <span>Загрузка…</span>
+          </button>
+        </li>
+      </ul>
+
+      <div class="sidebar__footer">
+        CryptoLab v1.0 · 2026
+      </div>
+    </aside>
+
+    <!-- ─── Main Content ───────────────────────────────────────────── -->
+    <main class="main" id="main-content">
+
+      <!-- Welcome screen (shown when no cipher is selected) -->
+      <div class="welcome" id="welcome-screen">
+        <div class="welcome__icon">🛡️</div>
+        <h1 class="welcome__title">Добро пожаловать в CryptoLab</h1>
+        <p class="welcome__subtitle">
+          Выберите шифр в боковом меню, чтобы начать шифрование или дешифрование текста.
+        </p>
+      </div>
+
+      <!-- Cipher workspace (hidden until a cipher is selected) -->
+      <div id="cipher-workspace" style="display:none;">
+        <!-- Header -->
+        <div class="main__header">
+          <div>
+            <h1 class="main__title" id="cipher-title">—</h1>
+            <p class="main__desc" id="cipher-desc">—</p>
+          </div>
+        </div>
+
+        <!-- Parameters -->
+        <div class="card" id="params-card">
+          <div class="card__title">⚙️ Параметры</div>
+          <div class="params" id="params-container">
+            <!-- Dynamically generated -->
+          </div>
+        </div>
+
+        <!-- Text areas -->
+        <div class="workspace">
+          <!-- Input panel -->
+          <div class="workspace__panel">
+            <div class="workspace__label">
+              <span class="workspace__label-text">📝 Исходный текст</span>
+              <button class="btn btn--ghost btn--small" id="btn-clear-input" title="Очистить">✕ Очистить</button>
+            </div>
+            <textarea
+              class="workspace__textarea"
+              id="input-text"
+              placeholder="Введите текст для шифрования…"
+              spellcheck="false"
+            ></textarea>
+          </div>
+
+          <!-- Output panel -->
+          <div class="workspace__panel">
+            <div class="workspace__label">
+              <span class="workspace__label-text">🔒 Результат</span>
+              <button class="btn btn--ghost btn--small" id="btn-copy" title="Скопировать">📋 Копировать</button>
+            </div>
+            <textarea
+              class="workspace__textarea"
+              id="output-text"
+              placeholder="Здесь появится результат…"
+              readonly
+              spellcheck="false"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+          <button class="btn btn--primary" id="btn-encrypt">🔒 Зашифровать</button>
+          <button class="btn btn--secondary" id="btn-decrypt">🔓 Расшифровать</button>
+          <button class="swap-btn" id="btn-swap" title="Поменять местами ввод и результат">⇄</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast notifications -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
