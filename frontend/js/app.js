@@ -16,6 +16,7 @@ const $workspace = document.getElementById("cipher-workspace");
 const $title = document.getElementById("cipher-title");
 const $desc = document.getElementById("cipher-desc");
 const $paramsContainer = document.getElementById("params-container");
+const $blockExtras = document.getElementById("block-extras");
 const $inputText = document.getElementById("input-text");
 const $outputText = document.getElementById("output-text");
 const $toastContainer = document.getElementById("toast-container");
@@ -112,11 +113,214 @@ function selectCipher(id) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  BLOCK TRANSPOSITION HELPERS & CHEATSHEET
+// ═══════════════════════════════════════════════════════════════════════════
+
+const RU_ALPHABET = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
+const EN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+let currentCheatsheetLang = "ru";
+
+function getCharRank(ch) {
+  const upper = ch.toUpperCase();
+  const ruIdx = RU_ALPHABET.indexOf(upper);
+  if (ruIdx !== -1) return ruIdx + 1;
+  const enIdx = EN_ALPHABET.indexOf(upper);
+  if (enIdx !== -1) return enIdx + 1 + 100;
+  return upper.charCodeAt(0) + 1000;
+}
+
+function getCharAlphabetNumber(ch) {
+  const upper = ch.toUpperCase();
+  const ruIdx = RU_ALPHABET.indexOf(upper);
+  if (ruIdx !== -1) return ruIdx + 1;
+  const enIdx = EN_ALPHABET.indexOf(upper);
+  if (enIdx !== -1) return enIdx + 1;
+  return "—";
+}
+
+function keywordToPermutation(keyword) {
+  const cleaned = keyword.replace(/\s+/g, "");
+  if (!cleaned) return null;
+
+  const items = Array.from(cleaned).map((ch, idx) => ({
+    char: ch.toUpperCase(),
+    origIdx: idx,
+    rank: getCharRank(ch),
+    num: getCharAlphabetNumber(ch),
+  }));
+
+  const indexed = [...items].sort((a, b) => {
+    if (a.rank !== b.rank) return a.rank - b.rank;
+    return a.origIdx - b.origIdx;
+  });
+
+  const perm0 = indexed.map((item) => item.origIdx);
+  const perm1 = perm0.map((p) => p + 1);
+
+  return {
+    cleaned,
+    items,
+    perm1,
+  };
+}
+
+function renderBlockTranspositionExtras() {
+  if (!$blockExtras) return;
+  $blockExtras.innerHTML = `
+    <!-- Live Key Preview -->
+    <div class="key-preview" id="key-preview-box">
+      <div class="key-preview__header">
+        <span class="key-preview__title">⚡ Преобразование слова в ключ перестановки</span>
+      </div>
+      <div id="key-preview-content"></div>
+    </div>
+
+    <!-- Cheatsheet table -->
+    <div class="cheatsheet-card">
+      <div class="cheatsheet-header">
+        <div class="cheatsheet-title">
+          <span>📖 Таблица 1 — Алфавит и порядковые номера</span>
+          <span class="cheatsheet-badge">Шпаргалка</span>
+        </div>
+        <div class="cheatsheet-tabs">
+          <button type="button" class="cheatsheet-tab-btn ${currentCheatsheetLang === "ru" ? "active" : ""}" data-lang="ru">Русский (1–33)</button>
+          <button type="button" class="cheatsheet-tab-btn ${currentCheatsheetLang === "en" ? "active" : ""}" data-lang="en">English (1–26)</button>
+        </div>
+      </div>
+      <p class="cheatsheet-desc">
+        Каждой букве соответствует порядковый номер в алфавите. Буквы слова ранжируются по возрастанию номеров, формируя порядок перестановки символов в блоке. Нажмите на любую букву, чтобы вставить её в поле ключа.
+      </p>
+      <div class="cheatsheet-table-wrapper" id="cheatsheet-table-container"></div>
+    </div>
+  `;
+
+  renderCheatsheetTable();
+
+  // Tab buttons switching
+  $blockExtras.querySelectorAll(".cheatsheet-tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      currentCheatsheetLang = btn.dataset.lang;
+      $blockExtras.querySelectorAll(".cheatsheet-tab-btn").forEach((b) => {
+        b.classList.toggle("active", b.dataset.lang === currentCheatsheetLang);
+      });
+      renderCheatsheetTable();
+      const kwInput = document.getElementById("param-keyword");
+      if (kwInput) updateHighlights(kwInput.value);
+    });
+  });
+
+  // Attach live updates to the keyword input
+  const keywordInput = document.getElementById("param-keyword");
+  if (keywordInput) {
+    updateKeyPreview(keywordInput.value);
+    updateHighlights(keywordInput.value);
+
+    keywordInput.addEventListener("input", () => {
+      updateKeyPreview(keywordInput.value);
+      updateHighlights(keywordInput.value);
+    });
+  }
+}
+
+function renderCheatsheetTable() {
+  const container = document.getElementById("cheatsheet-table-container");
+  if (!container) return;
+
+  const alphabet = currentCheatsheetLang === "ru" ? RU_ALPHABET : EN_ALPHABET;
+
+  let ths = `<th class="cheatsheet-row-label">Буква</th>`;
+  let tds = `<td class="cheatsheet-row-label">Номер</td>`;
+
+  for (let i = 0; i < alphabet.length; i++) {
+    const ch = alphabet[i];
+    const num = i + 1;
+    ths += `<th class="cheatsheet-char-cell" data-char="${ch}" title="Добавить букву '${ch}'">${ch}</th>`;
+    tds += `<td class="cheatsheet-num-cell" data-char="${ch}" title="Буква '${ch}', номер ${num}">${num}</td>`;
+  }
+
+  container.innerHTML = `
+    <table class="cheatsheet-table">
+      <thead><tr>${ths}</tr></thead>
+      <tbody><tr>${tds}</tr></tbody>
+    </table>
+  `;
+
+  // Click on cells to insert into the keyword input
+  container.querySelectorAll("[data-char]").forEach((cell) => {
+    cell.addEventListener("click", () => {
+      const ch = cell.dataset.char;
+      const kwInput = document.getElementById("param-keyword");
+      if (kwInput) {
+        kwInput.value += ch;
+        kwInput.dispatchEvent(new Event("input"));
+        kwInput.focus();
+      }
+    });
+  });
+}
+
+function updateHighlights(keyword) {
+  const chars = new Set(Array.from(keyword.toUpperCase().replace(/\s+/g, "")));
+  document.querySelectorAll(".cheatsheet-char-cell").forEach((cell) => {
+    cell.classList.toggle("active-char", chars.has(cell.dataset.char));
+  });
+  document.querySelectorAll(".cheatsheet-num-cell").forEach((cell) => {
+    cell.classList.toggle("active-num", chars.has(cell.dataset.char));
+  });
+}
+
+function updateKeyPreview(keyword) {
+  const content = document.getElementById("key-preview-content");
+  if (!content) return;
+
+  const result = keywordToPermutation(keyword);
+  if (!result || result.items.length === 0) {
+    content.innerHTML = `
+      <span style="color:var(--text-muted);font-size:0.8rem;">
+        Введите ключевое слово выше для генерации числового ключа перестановки.
+      </span>
+    `;
+    return;
+  }
+
+  const chipsHtml = result.items
+    .map(
+      (item) => `
+      <div class="key-preview__chip" title="Буква: ${item.char}, номер в алфавите: ${item.num}">
+        <span class="key-preview__chip-char">${item.char}</span>
+        <span class="key-preview__chip-num">№ ${item.num}</span>
+      </div>
+    `
+    )
+    .join("");
+
+  content.innerHTML = `
+    <div class="key-preview__steps">
+      <div style="font-size:0.75rem;color:var(--text-muted);margin-right:4px;">Буквы и номера:</div>
+      ${chipsHtml}
+    </div>
+    <div class="key-preview__result">
+      <div class="key-preview__badge">
+        <span class="key-preview__badge-label">Ключ перестановки:</span>
+        <strong>[ ${result.perm1.join(", ")} ]</strong>
+      </div>
+      <div class="key-preview__badge key-preview__badge--cyan">
+        <span class="key-preview__badge-label">Размер блока:</span>
+        <strong>${result.perm1.length} ${result.perm1.length === 1 ? "символ" : (result.perm1.length < 5 ? "символа" : "символов")}</strong>
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  RENDER PARAMETERS
 // ═══════════════════════════════════════════════════════════════════════════
 
 function renderParams(params) {
   $paramsContainer.innerHTML = "";
+  if ($blockExtras) {
+    $blockExtras.innerHTML = "";
+  }
 
   if (!params || params.length === 0) {
     $paramsContainer.innerHTML =
@@ -155,6 +359,11 @@ function renderParams(params) {
 
     $paramsContainer.appendChild(group);
   });
+
+  // If active cipher is block transposition, render cheatsheet & preview
+  if (activeCipherId === "blocktransposition") {
+    renderBlockTranspositionExtras();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
