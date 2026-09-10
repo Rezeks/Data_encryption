@@ -24,6 +24,9 @@ const $toastContainer = document.getElementById("toast-container");
 // ── Icons per cipher (fallback: 🔑) ──────────────────────────────────────
 const CIPHER_ICONS = {
   caesar: "🏛️",
+  caesarnospaces: "🏛️",
+  caesarspaces: "🌌",
+  caesarwithspaces: "🌌",
   simpletransposition: "🔀",
   blocktransposition: "🧩",
 };
@@ -313,6 +316,98 @@ function updateKeyPreview(keyword) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  CAESAR CIPHER HELPERS & CHEATSHEET
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderCaesarExtras(withSpaces) {
+  if (!$blockExtras) return;
+
+  const currentShift = () => {
+    const el = document.getElementById("param-shift");
+    const val = el ? parseInt(el.value, 10) : 3;
+    return isNaN(val) ? 3 : val;
+  };
+
+  const titleText = withSpaces
+    ? "📖 Таблица алфавита со сдвигом (34 символа: буквы + пробел)"
+    : "📖 Таблица классического алфавита (33 буквы)";
+  const badgeText = withSpaces ? "34 символа (пробел № 34)" : "33 буквы (А–Я)";
+  const descText = withSpaces
+    ? "В этой версии алфавит расширен до 34 символов: 33 русские буквы и пробел на 34-й позиции. Буквы и пробелы сдвигаются циклически. Нажмите на любой символ, чтобы добавить его в текст."
+    : "В классической версии сдвигаются только буквы алфавита (33 символа). Пробелы между словами и знаки препинания сохраняются на своих местах. Нажмите на букву, чтобы вставить её в текст.";
+
+  $blockExtras.innerHTML = `
+    <div class="cheatsheet-card">
+      <div class="cheatsheet-header">
+        <div class="cheatsheet-title">
+          <span>${titleText}</span>
+          <span class="cheatsheet-badge">${badgeText}</span>
+        </div>
+      </div>
+      <p class="cheatsheet-desc">${descText}</p>
+      <div class="cheatsheet-table-wrapper" id="caesar-table-container"></div>
+    </div>
+  `;
+
+  function updateCaesarTable() {
+    const container = document.getElementById("caesar-table-container");
+    if (!container) return;
+
+    const shift = currentShift();
+    const chars = withSpaces
+      ? [...RU_ALPHABET, " "]
+      : [...RU_ALPHABET];
+    const n = chars.length;
+
+    let thsOrig = `<th class="cheatsheet-row-label">Исходный</th>`;
+    let tdsNum = `<td class="cheatsheet-row-label">Номер</td>`;
+    let tdsShifted = `<td class="cheatsheet-row-label">Сдвиг (+${shift})</td>`;
+
+    chars.forEach((ch, idx) => {
+      const num = idx + 1;
+      const shiftedIdx = (idx + shift) % n;
+      const normalizedShiftedIdx = (shiftedIdx + n) % n;
+      const shiftedChar = chars[normalizedShiftedIdx];
+
+      const displayOrig = ch === " " ? "␣" : ch;
+      const displayShifted = shiftedChar === " " ? "␣" : shiftedChar;
+
+      thsOrig += `<th class="cheatsheet-char-cell" data-char="${ch}" title="Символ '${displayOrig}', номер ${num}">${displayOrig}</th>`;
+      tdsNum += `<td class="cheatsheet-num-cell" data-char="${ch}">${num}</td>`;
+      tdsShifted += `<td class="cheatsheet-char-cell ${shiftedChar === " " ? "active-char" : ""}" data-char="${ch}" style="color:var(--cyan);font-weight:700;">${displayShifted}</td>`;
+    });
+
+    container.innerHTML = `
+      <table class="cheatsheet-table">
+        <thead><tr>${thsOrig}</tr></thead>
+        <tbody>
+          <tr>${tdsNum}</tr>
+          <tr>${tdsShifted}</tr>
+        </tbody>
+      </table>
+    `;
+
+    // Click on cell to append char to input
+    container.querySelectorAll("[data-char]").forEach((cell) => {
+      cell.addEventListener("click", () => {
+        const ch = cell.dataset.char;
+        if ($inputText) {
+          $inputText.value += ch;
+          $inputText.focus();
+        }
+      });
+    });
+  }
+
+  updateCaesarTable();
+
+  const shiftInput = document.getElementById("param-shift");
+  if (shiftInput) {
+    shiftInput.addEventListener("input", updateCaesarTable);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  RENDER PARAMETERS
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -360,9 +455,13 @@ function renderParams(params) {
     $paramsContainer.appendChild(group);
   });
 
-  // If active cipher is block transposition, render cheatsheet & preview
+  // If active cipher is block transposition or caesar, render cheatsheet & preview
   if (activeCipherId === "blocktransposition") {
     renderBlockTranspositionExtras();
+  } else if (activeCipherId === "caesarspaces" || activeCipherId === "caesarwithspaces") {
+    renderCaesarExtras(true);
+  } else if (activeCipherId === "caesar" || activeCipherId === "caesarnospaces") {
+    renderCaesarExtras(false);
   }
 }
 

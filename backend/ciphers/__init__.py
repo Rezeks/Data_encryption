@@ -56,13 +56,32 @@ def register_cipher(cls: type[BaseCipher]) -> type[BaseCipher]:
 
 
 def get_cipher(cipher_id: str) -> BaseCipher | None:
-    """Look up a cipher by its ID."""
-    return _registry.get(cipher_id)
+    """Look up a cipher by its ID, supporting aliases and normalized keys."""
+    key = cipher_id.lower().replace("_", "").replace("-", "")
+    if key in _registry:
+        return _registry[key]
+    aliases = {
+        "caesarnospaces": "caesar",
+        "caesarclassic": "caesar",
+        "caesarwithspaces": "caesarspaces",
+        "caesarspace": "caesarspaces",
+    }
+    target = aliases.get(key)
+    if target and target in _registry:
+        return _registry[target]
+    return _registry.get(cipher_id.lower())
 
 
 def list_ciphers() -> list[dict]:
-    """Return metadata for all registered ciphers."""
-    return [cipher.get_info() for cipher in _registry.values()]
+    """Return metadata for all registered ciphers without duplicates."""
+    seen = set()
+    result = []
+    for cipher in _registry.values():
+        info = cipher.get_info()
+        if info["id"] not in seen:
+            seen.add(info["id"])
+            result.append(info)
+    return result
 
 
 # ---------------------------------------------------------------------------
